@@ -1,37 +1,61 @@
-import express from 'express';
-import path from 'path';
-import mongoose from 'mongoose';
-import bodyParser from 'body-parser';
-import config from './config';
-import userRoute from './routes/userRoute';
-import productRoute from './routes/productRoute';
-import orderRoute from './routes/orderRoute';
-import uploadRoute from './routes/uploadRoute';
+//initializes
+const mongoose = require('mongoose');
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const dotenv = require('dotenv');
+const dotenvExpand = require('dotenv-expand');
+const myEnv = dotenv.config();
+dotenvExpand.expand(myEnv);
 
-const mongodbUrl = config.MONGODB_URL;
-mongoose
-  .connect(mongodbUrl, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    useCreateIndex: true,
-  })
-  .catch((error) => console.log(error.reason));
-
+//app
 const app = express();
-app.use(bodyParser.json());
-app.use('/api/uploads', uploadRoute);
-app.use('/api/users', userRoute);
-app.use('/api/products', productRoute);
-app.use('/api/orders', orderRoute);
-app.get('/api/config/paypal', (req, res) => {
-  res.send(config.PAYPAL_CLIENT_ID);
-});
-app.use('/uploads', express.static(path.join(__dirname, '/../uploads')));
-app.use(express.static(path.join(__dirname, '/../frontend/build')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(`${__dirname}/../frontend/build/index.html`));
-});
 
-app.listen(config.PORT, () => {
-  console.log('Server started at http://localhost:5000');
-});
+//port
+const port = process.env.PORT || 6400;
+console.log("Localhost connected on port",port)
+
+//routes
+const productRoute = require('./routes/product');
+const homeRoute = require('./routes/home');
+const cartRoute = require('./routes/cart');
+const userRoute = require('./routes/user');
+const authRoute = require('./routes/auth');
+const paymentRoute = require('./routes/paymentRoute');
+const printfulRoute = require('./routes/printfulRoute');
+
+//middleware
+app.use(cors({ origin: `http://localhost:5173`, credentials: true }));
+app.use(express.static(path.join(__dirname, '/public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+//view engine
+app.set('view engine', 'ejs');
+app.set('views', 'views');
+
+app.disable('view cache');
+
+app.use('/', homeRoute);
+app.use('/products', productRoute);
+app.use('/carts', cartRoute);
+app.use('/auth', userRoute);
+app.use('/auth', authRoute);
+app.use('/payment',paymentRoute)
+app.use('/printful', printfulRoute);
+
+//mongoose
+mongoose.set('useFindAndModify', false);
+mongoose.set('useUnifiedTopology', true);
+mongoose
+	.connect(process.env.DATABASE_URL, { useNewUrlParser: true })
+	.then(() => {
+		app.listen(port, () => {
+			console.log('connect');
+		});
+	})
+	.catch((err) => {
+		console.log(err);
+	});
+
+module.exports = app;
